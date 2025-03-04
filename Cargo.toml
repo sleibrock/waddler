@@ -1,6 +1,7 @@
 [package]
 name = "waddler"
 version = "0.1.0"
-authors = ["Steven Leibrock <steven.leibrock@gmail.com>"]
+authors = ["Steven Leibrock <contact@ste5e.site>"]
+edition = "2021"
 
 [dependencies]

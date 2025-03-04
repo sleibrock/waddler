@@ -1,19 +1,17 @@
 // structs/vertex.rs
 
-use utils::u8_to_i16;
-use structs::constants::VERTEX_W;
-
+use crate::structs::constants::VERTEX_W;
+use crate::utils::u8_to_i16;
 
 pub struct Vertex {
     pub x: i16,
     pub y: i16,
 }
 
-
 impl Vertex {
     pub fn new(dat: &[u8]) -> Vertex {
         if dat.len() != VERTEX_W {
-            panic!(format!("Vertex not given {} bytes", VERTEX_W));
+            panic!("Vertex not given {} bytes", VERTEX_W);
         }
 
         Vertex {
@@ -22,6 +20,5 @@ impl Vertex {
         }
     }
 }
-
 
 // end structs/vertex.rs
