@@ -23,6 +23,10 @@ linedef // <number>
 {
 v1 = <usize>;
 v2 = <usize>;
+sidefront = <usize>;
+sideback = <usize>;
+twosided = <bool>;
+dontdraw = <bool>;
 }
 
 sector // <number>
@@ -196,8 +200,16 @@ fn main() {
 
                 // start rendering to an SVG file HERE
                 // none of my old SVG code works for floating point types currently
-                let svg_width = (max_x as u64) + 1;
-                let svg_height = (max_y as u64) + 1;
+                // some vertices may be negative, so we want to shift them
+                // into the positive domain for ease
+                let svg_max_x = (max_x as i64) + 1;
+                let svg_max_y = (max_y as i64) + 1;
+                let svg_min_x = (min_x as i64) - 1;
+                let svg_min_y = (min_y as i64) - 1;
+                let svg_width = svg_min_x.abs() + svg_max_x.abs();
+                let svg_height = svg_min_y.abs() + svg_max_y.abs();
+                let shift_x = min_x.abs();
+                let shift_y = min_y.abs();
 
                 let mut f = match File::create(format!("{}.svg", fname)) {
                     Ok(new_file) => new_file,
@@ -212,10 +224,10 @@ fn main() {
 
                     let _ = f.write(format!(
                         "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" />",
-                        a.x,
-                        a.y,
-                        b.x,
-                        b.y,
+                        a.x + shift_x,
+                        a.y + shift_y,
+                        b.x + shift_x,
+                        b.y + shift_y,
                         "black",
                         "5").as_ref());
                 }
