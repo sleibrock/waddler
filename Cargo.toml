@@ -1,6 +1,6 @@
 [package]
 name = "waddler"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Steven Leibrock <contact@ste5e.site>"]
 edition = "2021"
 

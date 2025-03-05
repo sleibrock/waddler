@@ -51,13 +51,13 @@ impl MapPatch {
             panic!("MapPatch not valid size");
         }
 
-        return MapPatch {
+        MapPatch {
             x_origin: 0,
             y_origin: 0,
             patch: 0,
             stepdir: 0,
             colormap: 0,
-        };
+        }
     }
 }
 
@@ -70,11 +70,11 @@ impl TextureLump {
         let numtex = u8_to_u32(dat[0], dat[1], dat[2], dat[3]) as usize;
         let _offstart = numtex * 4 as usize;
 
-        return TextureLump {
+        TextureLump {
             numtextures: numtex as usize,
             offsets: off,
             mtextures: tex,
-        };
+        }
     }
 }
 
