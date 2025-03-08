@@ -58,7 +58,7 @@ impl fmt::Debug for Lump {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} <0x{:X} .. 0x{:X}> ({} bytes)",
+            "{} <{} .. {}> ({} bytes)",
             self.name,
             self.posn,
             self.posn + self.size,

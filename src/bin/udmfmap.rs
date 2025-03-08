@@ -27,6 +27,17 @@ sidefront = <usize>;
 sideback = <usize>;
 twosided = <bool>;
 dontdraw = <bool>;
+dontpegtop = <bool>;
+}
+
+sidedef // <number>
+{
+sector = <usize>;
+offsetx_top = <float>;
+offsetx_bottom = <float>;
+texturebottom = <string>;
+texturetop = <string>;
+texturemiddle = <string>;
 }
 
 sector // <number>
@@ -65,10 +76,27 @@ impl UVertex {
 struct ULinedef {
     v1: usize,
     v2: usize,
+    special: usize,
+    arg0: i32,
+    arg1: i32,
+    arg2: i32,
+    arg3: i32,
+    arg4: i32,
+    twosided: bool,
 }
 impl ULinedef {
     fn new() -> ULinedef {
-        ULinedef { v1: 0, v2: 0 }
+        ULinedef {
+            v1: 0,
+            v2: 0,
+            special: 0,
+            arg0: 0,
+            arg1: 0,
+            arg2: 0,
+            arg3: 0,
+            arg4: 0,
+            twosided: false,
+        }
     }
 }
 
@@ -91,6 +119,16 @@ fn slice_to_usize(sl: &str) -> usize {
     return x;
 }
 
+fn slice_to_i32(sl: &str) -> i32 {
+    let x: i32 = sl.parse().unwrap();
+    return x;
+}
+
+fn slice_to_bool(sl: &str) -> bool {
+    let x: bool = sl.parse().unwrap();
+    return x;
+}
+
 fn main() {
     let mut arg_iter = args();
     arg_iter.next();
@@ -102,10 +140,13 @@ fn main() {
             Err(e) => panic!("Welp. {}", e),
         };
 
+        let core_data = &data[wad.header.data_range()];
+
         for lump in &wad.lumps {
             if lump.name == "TEXTMAP".to_string() {
                 println!("Found textmap");
-                let txtmap = &data[lump.start..lump.end];
+                println!("Textmap length: {}", lump.size);
+                let txtmap = &core_data[lump.start..lump.end];
 
                 // parse the textmap into a list of lines
                 let mut start = 0;
@@ -117,7 +158,7 @@ fn main() {
 
                 // containers for data
                 // for now, linedefs -> vector, vertices -> hashmap
-                let mut linedefs: Vec<ULinedef> = Vec::new();
+                let mut linedefs: HashMap<usize, ULinedef> = HashMap::new();
                 let mut vertices: HashMap<usize, UVertex> = HashMap::new();
 
                 // svg specific boundaries needed
@@ -138,9 +179,9 @@ fn main() {
                     if line.starts_with("vertex // ") {
                         pstate = PState::Vert(UVertex::new());
                         pid = slice_to_usize(&line[10..line.len()]);
-                    } else if line.starts_with("linedef") {
+                    } else if line.starts_with("linedef // ") {
                         pstate = PState::Line(ULinedef::new());
-                        pid = 0;
+                        pid = slice_to_usize(&line[11..line.len()]);
                     } else if line.starts_with("{") {
                         in_struct = true;
                     } else if line.starts_with("}") {
@@ -151,7 +192,7 @@ fn main() {
                                 vertices.insert(pid, v);
                             }
                             PState::Line(l) => {
-                                linedefs.push(l);
+                                linedefs.insert(pid, l);
                             }
                             _ => {}
                         }
@@ -159,7 +200,7 @@ fn main() {
                     }
 
                     if in_struct {
-                        let lend = line.len() - 1;
+                        let lend = line.len() - 1; // no \n character in slices
                         match pstate {
                             PState::Vert(ref mut v) => {
                                 if line.starts_with("x = ") {
@@ -187,6 +228,27 @@ fn main() {
                                 } else if line.starts_with("v2 = ") {
                                     let decimal = slice_to_usize(&line[5..lend]);
                                     l.v2 = decimal;
+                                } else if line.starts_with("special = ") {
+                                    let decimal = slice_to_usize(&line[10..lend]);
+                                    l.special = decimal;
+                                } else if line.starts_with("arg0 = ") {
+                                    let decimal = slice_to_i32(&line[7..lend]);
+                                    l.arg0 = decimal;
+                                } else if line.starts_with("arg1 = ") {
+                                    let decimal = slice_to_i32(&line[7..lend]);
+                                    l.arg1 = decimal;
+                                } else if line.starts_with("arg2 = ") {
+                                    let decimal = slice_to_i32(&line[7..lend]);
+                                    l.arg2 = decimal;
+                                } else if line.starts_with("arg3 = ") {
+                                    let decimal = slice_to_i32(&line[7..lend]);
+                                    l.arg3 = decimal;
+                                } else if line.starts_with("arg4 = ") {
+                                    let decimal = slice_to_i32(&line[7..lend]);
+                                    l.arg4 = decimal;
+                                } else if line.starts_with("twosided = ") {
+                                    let boolean = slice_to_bool(&line[11..lend]);
+                                    l.twosided = boolean;
                                 }
                             }
                             _ => {}
@@ -211,6 +273,8 @@ fn main() {
                 let shift_x = min_x.abs();
                 let shift_y = min_y.abs();
 
+                let mut num_portals = 0;
+
                 let mut f = match File::create(format!("{}.svg", fname)) {
                     Ok(new_file) => new_file,
                     Err(why) => panic!("Couldn't create file. {}", why),
@@ -218,7 +282,14 @@ fn main() {
 
                 let svg_header = format!("<svg width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">", svg_width, svg_height, svg_width, svg_height);
                 let _ = f.write(svg_header.as_ref());
-                for linedef in linedefs {
+                let _ = f.write(
+                    format!(
+                        "<rect x=\"0\" y=\"0\" width=\"{}\" height=\"{}\" fill=\"{}\" />",
+                        svg_width, svg_height, "black"
+                    )
+                    .as_ref(),
+                );
+                for linedef in linedefs.values() {
                     let a = vertices.get(&linedef.v1).unwrap();
                     let b = vertices.get(&linedef.v2).unwrap();
 
@@ -228,11 +299,58 @@ fn main() {
                         a.y + shift_y,
                         b.x + shift_x,
                         b.y + shift_y,
-                        "black",
+                        match linedef.twosided {
+                            true => "grey",
+                            _ => "white",
+                        },
                         "5").as_ref());
+
+                    if linedef.special == 107 {
+                        //println!("Got a Line_SetPortalTarget()");
+                        num_portals += 1;
+                    }
+                    if linedef.special == 156 {
+                        /*
+                        println!("Got a Line_SetPortal()");
+                        println!("arg0: {}", linedef.arg0); // target
+                        println!("arg1: {}", linedef.arg1); // thisline (should be 0)
+                        println!("arg2: {}", linedef.arg2); // type
+                        println!("arg3: {}", linedef.arg3); // plane anchor (0|1)
+                        */
+                        num_portals += 1;
+
+                        /*
+                        if (linedef.arg0 != 0) {
+                            // draw a line from current line to target line
+                            let index = linedef.arg0 as usize;
+                            let target_line = linedefs
+                                .get(&index)
+                                .expect("Failed to find matching line for this portal");
+                            let c = vertices
+                                .get(&target_line.v1)
+                                .expect("Failed to find matching vertex for this line");
+
+                            let _ = f.write(format!(
+                                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\" stroke-width=\"{}\" />",
+                                a.x + shift_x,
+                                a.y + shift_y,
+                                c.x + shift_x,
+                                c.y + shift_y,
+                                "red",
+                                "10"
+                            ).as_ref());
+                        }
+                        */
+                    }
                 }
+
                 let _ = f.write(b"</svg>");
                 // end SVG rendering
+
+                println!("Stats:");
+                println!("Number of vertices: {}", &vertices.len());
+                println!("Number of linedefs: {}", &linedefs.len());
+                println!("Number of portals: {}", num_portals);
 
                 println!("Created map: {}.svg", fname);
             }

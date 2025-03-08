@@ -17,18 +17,39 @@ fn main() {
             Err(e) => panic!("Welp. {}", e),
         };
 
+        let core_data = &data[wad.header.data_range()];
+
         for lump in &wad.lumps {
-            println!("{:?}", lump);
+            //println!("{:?}", lump);
             if lump.name == "TEXTMAP".to_string() {
                 println!("Found textmap");
-                let txtmap = &data[lump.start..lump.end];
+                println!("Lump start: {}", lump.start);
+                println!("Lump end: {}", lump.end);
+                println!("Lump size: {}", lump.size);
+
+                let txtmap = &core_data[lump.start..lump.end];
                 let mut i = 0;
                 while i < txtmap.len() {
                     print!("{}", (txtmap[i]) as char);
                     i += 1;
                 }
             }
+
+            if lump.name == "SCRIPTS".to_string() {
+                println!("Found SCRIPTS");
+                println!("Lump start: {}", lump.start);
+                println!("Lump end: {}", lump.end);
+                println!("Lump size: {}", lump.size);
+
+                let txtmap = &core_data[lump.start..lump.end];
+                let mut i = 0;
+                while i < txtmap.len() {
+                    //print!("{}", (txtmap[i]) as char);
+                    i += 1;
+                }
+            }
         }
+        println!("Done with {}", fname);
     }
 
     exit(0);
